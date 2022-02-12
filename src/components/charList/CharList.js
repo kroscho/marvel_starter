@@ -8,23 +8,47 @@ import './charList.scss';
 class CharList extends Component {
     
     state = {
-        characters: [],
+        charList: [],
         loading: true,
-        error: false
+        error: false,
+        newItemLoading: false,
+        offset: 210,
+        charEnded: false
     }
 
     marvelService = new MarverService();
 
     componentDidMount() {
-        this.getCharacters();
+        this.onRequest();
     }
 
-    onCharactersLoaded = (characters) => {
+    onRequest = (offset) => {
+        this.onCharListLoading();
+        this.marvelService
+            .getAllCharacters(offset)
+            .then(this.onCharListLoaded)
+            .catch(this.onError);
+    }
+
+    onCharListLoading = () => {
         this.setState({
-            characters,
-            loading: false,
-            error: false
+            newItemLoading: true
         })
+    }
+
+    onCharListLoaded = (newCharList) => {
+        let ended = false;
+        if (newCharList.length < 9) {
+            ended = true;
+        }
+        
+        this.setState(({offset, charList}) => ({
+            charList: [...charList, ...newCharList],
+            loading: false,
+            newItemLoading: false,
+            offset: offset + 9,
+            charEnded: ended
+        }))
     }
 
     onError = () => {
@@ -32,13 +56,6 @@ class CharList extends Component {
             loading: false,
             error: true
         })
-    }
-
-    getCharacters = () => {
-        this.marvelService
-            .getAllCharacters()
-            .then(this.onCharactersLoaded)
-            .catch(this.onError);
     }
 
     renderItems(chars) {        
@@ -49,7 +66,11 @@ class CharList extends Component {
             }
             
             return (
-                <li key={char.id} className="char__item">
+                <li 
+                    key={char.id} 
+                    className="char__item"
+                    onClick={() => this.props.onCharSelected(char.id)}
+                >
                     <img src={char.thumbnail} alt={char.name} style={imgStyle}/>
                     <div className="char__name">{char.name}</div>
                 </li>
@@ -65,9 +86,9 @@ class CharList extends Component {
     
 
     render() {        
-        const {characters, loading, error} = this.state;
+        const {charList, loading, error, offset, newItemLoading, charEnded} = this.state;
 
-        const listChars = this.renderItems(characters);
+        const listChars = this.renderItems(charList);
 
         const errorMessage = error ? <ErrorMessage/> : null;
         const spinner = loading ? <Spinner/> : null;
@@ -78,7 +99,12 @@ class CharList extends Component {
                 {errorMessage}
                 {spinner}
                 {content}
-                <button className="button button__main button__long">
+                <button 
+                    className="button button__main button__long"
+                    disabled={newItemLoading}
+                    style={{'display': charEnded ? 'none' : 'block'}}
+                    onClick={() => this.onRequest(offset)}
+                >
                     <div className="inner">load more</div>
                 </button>
             </div>
